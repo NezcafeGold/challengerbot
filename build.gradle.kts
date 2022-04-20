@@ -35,6 +35,13 @@ tasks.withType<KotlinCompile> {
 	}
 }
 
+
 tasks.withType<Test> {
 	useJUnitPlatform()
+}
+
+configurations.all {
+	resolutionStrategy {
+		force("com.squareup.retrofit2:retrofit2:2.7.0")
+	}
 }
