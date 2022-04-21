@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
 	id("org.springframework.boot") version "2.6.6"
 	id("io.spring.dependency-management") version "1.0.11.RELEASE"
+	id ("org.jetbrains.kotlin.plugin.allopen") version "1.6.21"
 	kotlin("jvm") version "1.6.10"
 	kotlin("plugin.spring") version "1.6.10"
 	kotlin("plugin.jpa") version "1.6.10"
@@ -26,6 +27,10 @@ dependencies {
 	implementation("io.github.kotlin-telegram-bot.kotlin-telegram-bot:telegram:6.0.6")
 	runtimeOnly("com.h2database:h2")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
+}
+
+allOpen {
+    annotations("javax.persistence.Entity", "javax.persistence.MappedSuperclass", "javax.persistence.Embedabble")
 }
 
 tasks.withType<KotlinCompile> {
