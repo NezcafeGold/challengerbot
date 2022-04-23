@@ -9,9 +9,7 @@ import javax.persistence.MappedSuperclass
 @MappedSuperclass
 abstract class BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    var id: Long? = null
+    abstract var id: Long?
 
     override fun equals(other: Any?): Boolean {
         other ?: return false

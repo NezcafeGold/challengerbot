@@ -6,14 +6,12 @@ import javax.persistence.*
 @Table(name = "task")
 @Entity
 class Task(
-
     @ManyToOne()
     @JoinColumn(name = "owner_id")
-    private val owner: Owner? = null,
-
-    private val title: String? = null,
-    private val description: String? = null,
-    private val deadline: Date? = null,
-    private val status: Boolean? = null,
-    private val report: String? = null,
-) : BaseEntity()
+    var owner: Owner? = null,
+    var title: String? = null,
+    var description: String? = null,
+    var deadline: Date = Date(java.util.Date().time),
+    var status: Boolean? = null,
+    var report: String? = null,
+) : IdBaseEntity()

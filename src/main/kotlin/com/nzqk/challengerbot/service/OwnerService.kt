@@ -6,12 +6,17 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 
 @Service
-class OwnerService {
+class OwnerService() {
 
     @Autowired
-    private var ownerRepository: OwnerRepository? = null
+    private lateinit var ownerRepository: OwnerRepository
 
-    fun addNewOwner(id2: Long){
-//        ownerRepository?.save(Owner(id2))
+    fun addNewOwner(owner: Owner) {
+        ownerRepository.save(owner)
+
     }
+
+    fun getOwner(id: Long) =
+        ownerRepository.findById(id)
+
 }
