@@ -1,132 +1,139 @@
 package com.nzqk.challengerbot
 
-import com.github.kotlintelegrambot.Bot
 import com.github.kotlintelegrambot.bot
 import com.github.kotlintelegrambot.dispatch
-import com.github.kotlintelegrambot.dispatcher.*
-import com.github.kotlintelegrambot.dispatcher.handlers.Handler
-import com.github.kotlintelegrambot.dispatcher.handlers.MessageHandlerEnvironment
-import com.github.kotlintelegrambot.entities.*
+import com.github.kotlintelegrambot.dispatcher.callbackQuery
+import com.github.kotlintelegrambot.dispatcher.command
+import com.github.kotlintelegrambot.dispatcher.message
+import com.github.kotlintelegrambot.entities.ChatId
+import com.github.kotlintelegrambot.entities.ForceReplyMarkup
+import com.github.kotlintelegrambot.entities.InlineKeyboardMarkup
 import com.github.kotlintelegrambot.entities.keyboard.InlineKeyboardButton
 import com.github.kotlintelegrambot.extensions.filters.Filter
 import com.github.kotlintelegrambot.network.fold
-import com.github.kotlintelegrambot.webhook
 import com.nzqk.challengerbot.command.CreateTaskCommand
+import com.nzqk.challengerbot.observer.MessageObserver
 import com.nzqk.challengerbot.utils.ApplicationContextUtils
-import com.nzqk.challengerbot.utils.ReplyHandler
-import org.aspectj.bridge.MessageHandler
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 import org.springframework.context.ApplicationContext
 
 
 @SpringBootApplication
-open class ChallengerbotApplication
+class ChallengerbotApplication {
 
-private enum class CommandMessage(val message: String) {
-    ADD_TITLE("Добавить заголовок"),
-    ADD_DESCRIPTION("Добавить описание")
+    val appCtx: ApplicationContext by lazy { ApplicationContextUtils.applicationContext!! }
+    val createTaskCommand by lazy { appCtx.getBean("createTaskCommand", CreateTaskCommand::class.java) }
+
+    fun start() {
+
+        val observer = MessageObserver()
+        observer.startTimer()
+
+        val regexpCommandMessage = "^[а-яА-Я]+\\s[а-я]+\\s\\[\\d+]\$".toRegex()
+
+        val bot = bot {
+            token = "5393101475:AAG4uNHFuKBTO_hNKRCcBOHct3QF9EvQWEE"
+            dispatch {
+
+                command("help") {
+                    bot.sendMessage(
+                            chatId = ChatId.fromId(message.chat.id),
+                            text = " Возможные команды",
+                            replyToMessageId = update.message!!.messageId,
+                            replyMarkup = InlineKeyboardMarkup.createSingleRowKeyboard(
+                                    InlineKeyboardButton.CallbackData(
+                                            "Создать задачу",
+                                            "create_task"
+                                    ),
+                                    InlineKeyboardButton.CallbackData(
+                                            "Мои задачи",
+                                            "my_tasks"
+                                    )
+                            )
+
+                    )
+
+                }
+
+                callbackQuery("create_task") {
+                    val titleResult = bot.sendMessage(
+                            chatId = ChatId.fromId(callbackQuery.message!!.chat.id),
+                            text = CommandMessage.ADD_TITLE.message,
+                            replyToMessageId = callbackQuery.message!!.messageId,
+                            replyMarkup = ForceReplyMarkup(true, selective = true)
+                    )
+
+                    titleResult.fold({
+                        val result = it!!.result!!
+                        observer.add(
+                                messageId = result.messageId,
+                                chatId = result.chat.id,
+                                userId = result.replyToMessage!!.chat.id
+                        )
+                    })
+                }
+
+                callbackQuery("create_task") {
+
+                }
+
+                message(Filter.Reply) {
+                    if (message.replyToMessage?.text == CommandMessage.ADD_TITLE.message) {
+                        observer.get(message.replyToMessage!!.messageId)?.also { cacheMessage ->
+                            if (cacheMessage.chatId == message.chat.id && cacheMessage.userId == message.from?.id) {
+                                cacheMessage.createdTime = System.currentTimeMillis()
+                                cacheMessage.task.title = message.text
+                                observer.remove(message.replyToMessage!!.messageId)
+
+                                val titleResult = bot.sendMessage(
+                                        chatId = ChatId.fromId(message.chat.id),
+                                        text = CommandMessage.ADD_DESCRIPTION.message,
+                                        replyToMessageId = message.messageId,
+                                        replyMarkup = ForceReplyMarkup(true, selective = true)
+                                )
+                                titleResult.fold({
+                                    observer.add(it!!.result!!.messageId, cacheMessage)
+                                })
+                            }
+                        }
+                    }
+
+                    if (message.replyToMessage?.text == CommandMessage.ADD_DESCRIPTION.message) {
+                        observer.get(message.replyToMessage!!.messageId)?.also { cacheMessage ->
+                            if (cacheMessage.chatId == message.chat.id && cacheMessage.userId == message.from?.id) {
+                                cacheMessage.createdTime = System.currentTimeMillis()
+                                cacheMessage.task.description = message.text
+
+                                val task = createTaskCommand.execute(message, cacheMessage.task)
+                                observer.remove(message.replyToMessage!!.messageId)
+
+                                bot.sendMessage(
+                                        chatId = ChatId.fromId(message.chat.id),
+                                        text = "Задача с номером ${task.id} успешно создана!",
+                                        replyToMessageId = message.messageId
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        bot.startPolling()
+
+    }
+
+
+    private enum class CommandMessage(val message: String) {
+        ADD_TITLE("Задай название для задачи"),
+        ADD_DESCRIPTION("Отлично! А теперь задай описание"),
+    }
+
 }
+
 
 fun main(args: Array<String>) {
     runApplication<ChallengerbotApplication>(*args)
 
-    val regexpCommandMessage = "^[а-яА-Я]+\\s[а-я]+\\s\\[\\d+]\$".toRegex()
-    val appCtx: ApplicationContext = ApplicationContextUtils.applicationContext!!
-    val bot = bot {
-        token = "5393101475:AAG4uNHFuKBTO_hNKRCcBOHct3QF9EvQWEE"
-        dispatch {
-
-            command("create_task") {
-
-            }
-
-            command("help") {
-                bot.sendMessage(
-                    chatId = ChatId.fromId(message.chat.id),
-                    text = " Возможные команды",
-                    replyToMessageId = update.message!!.messageId,
-                    replyMarkup = InlineKeyboardMarkup.createSingleRowKeyboard(
-                        InlineKeyboardButton.CallbackData(
-                            "Создать задачу",
-                            "create_task"
-                        ),
-                        InlineKeyboardButton.CallbackData(
-                            "Мои задачи",
-                            "my_tasks"
-                        )
-                    )
-
-                )
-
-            }
-
-            callbackQuery("create_task") {
-                val createTaskCommand = appCtx.getBean("createTaskCommand", CreateTaskCommand::class.java)
-
-//                val task = createTaskCommand.execute(callbackQuery.message!!)
-//                val text =
-//                    "Для @${callbackQuery.from.username} успешно создана задач с номером ${task.id}!"
-
-//                replyMarkup = KeyboardReplyMarkup.createSimpleKeyboard(
-//                    listOf(
-//                        listOf("${CommandMessage.ADD_TITLE.message} [${task.id}]"),
-//                        listOf("${CommandMessage.ADD_DESCRIPTION.message} [${task.id}]"),
-//                    )
-//                )
-
-                val text = "Задай название для задачи"
-
-                val titleResult = bot.sendMessage(
-                    chatId = ChatId.fromId(callbackQuery.message!!.chat.id),
-                    text = text,
-                    replyToMessageId = callbackQuery.message!!.messageId,
-                    replyMarkup = ForceReplyMarkup(true, selective = true)
-                )
-
-
-                var replyHandler: ReplyHandler? = null
-                fun remove() {
-                    replyHandler?.let { removeHandler(it) }
-                }
-                titleResult.fold({
-                    replyHandler = ReplyHandler(Filter.Reply) {
-                        println("sasd")
-                        remove()
-                    }
-                    addHandler(replyHandler!!)
-                }, {
-
-                })
-
-
-            }
-
-            message {
-                if (message.text?.matches(regexpCommandMessage) == true) {
-//                    message.text.split(" ").also {
-//                        it[2]
-//                    }
-// делаем проверку на возможность использования данной задачи
-                    val result = bot.sendMessage(
-                        chatId = ChatId.fromId(message.chat.id),
-                        text = "SS",
-                        replyToMessageId = message.messageId,
-                        replyMarkup = KeyboardReplyMarkup.createSimpleKeyboard(
-                            listOf(
-//                                listOf("${CommandMessage.ADD_TITLE.message} [${task.id}]"),
-//                                listOf("${CommandMessage.ADD_DESCRIPTION.message} [${task.id}]"),
-                            )
-                        )
-                    )
-                    result.fold({
-
-                    }, {
-
-                    })
-                }
-            }
-        }
-    }
-    bot.startPolling()
+    ChallengerbotApplication().start()
 }

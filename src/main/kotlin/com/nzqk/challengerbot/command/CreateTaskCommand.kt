@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
 
 @Component
-class CreateTaskCommand() : ICommand<Task> {
+class CreateTaskCommand() {
 
     @Autowired
     private lateinit var ownerService: OwnerService
@@ -18,15 +18,15 @@ class CreateTaskCommand() : ICommand<Task> {
     @Autowired
     private lateinit var taskService: TaskService
 
-    override fun execute(message: Message): Task {
+    fun execute(message: Message, task: Task): Task {
         val user = requireNotNull(message.from)
         val owner = findOwner(user)
 
-        return createTaskForOwner(owner)
+        return createTaskForOwner(owner, task)
     }
 
-    private fun createTaskForOwner(owner: Owner): Task {
-        val task = Task().apply {
+    private fun createTaskForOwner(owner: Owner, task: Task): Task {
+        task.apply {
             this.owner = owner
         }
         return taskService.addTask(task)
