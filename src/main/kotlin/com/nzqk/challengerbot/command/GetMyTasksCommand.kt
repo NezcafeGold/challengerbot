@@ -7,14 +7,12 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
 
 @Component
-class GetTaskCommand : ICommand<Task> {
+class GetMyTasksCommand {
 
     @Autowired
     private lateinit var taskService: TaskService
 
-    override fun execute(message: Message): Task =
-        message.text?.replaceBefore(" ", "")?.trim()?.toLongOrNull()
-            ?.let {
-                taskService.getTask(it).get()
-            } ?: Task()
+    fun execute(message: Message): List<Task> {
+        return taskService.getAllTaskWithOwnerId(message.from!!.id)
+    }
 }
