@@ -30,7 +30,7 @@ class Task(
         
         <b>Владелец:</b> ${owner?.name ?: ""}
         
-        ```$description```
+        <code>$description</code>
         
         <b>Срок завершения:</b> $deadline
     """.trimIndent()

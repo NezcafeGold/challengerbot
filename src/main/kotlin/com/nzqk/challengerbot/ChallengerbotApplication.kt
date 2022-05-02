@@ -10,6 +10,7 @@ import com.github.kotlintelegrambot.extensions.filters.Filter
 import com.github.kotlintelegrambot.network.fold
 import com.nzqk.challengerbot.command.CreateTaskCommand
 import com.nzqk.challengerbot.command.GetMyTasksCommand
+import com.nzqk.challengerbot.command.GetTaskCommand
 import com.nzqk.challengerbot.observer.CacheMessage
 import com.nzqk.challengerbot.observer.MessageObserver
 import com.nzqk.challengerbot.utils.ApplicationContextUtils
@@ -23,6 +24,7 @@ class ChallengerbotApplication {
     val appCtx: ApplicationContext by lazy { ApplicationContextUtils.applicationContext!! }
     val createTaskCommand by lazy { appCtx.getBean("createTaskCommand", CreateTaskCommand::class.java) }
     val getMyTasksCommand by lazy { appCtx.getBean("getMyTasksCommand", GetMyTasksCommand::class.java) }
+    val getTaskCommand by lazy { appCtx.getBean("getTaskCommand", GetTaskCommand::class.java) }
     val observer = MessageObserver()
 
     fun start() {
@@ -69,8 +71,14 @@ class ChallengerbotApplication {
 
                 message(Filter.Reply) {
 
-                    if (message.replyToMessage?.text == CommandMessage.GET_TASK.message) {
+                    if (message.replyToMessage?.text == CommandMessage.GET_TASK_NUM.message) {
                         message.findCacheMessage()?.also { cacheMessage ->
+                            if (message.checkCorrectUser(cacheMessage)) {
+                                getTaskCommand.execute(message).also {
+                                    observer.remove(message.replyToMessage!!.messageId)
+                                    bot.sendMyMessage(message, it.toString(), null)
+                                }
+                            }
                         }
                     }
 
@@ -171,6 +179,7 @@ class ChallengerbotApplication {
         sendMessage(
             chatId = ChatId.fromId(message.chat.id),
             text = text,
+            parseMode = ParseMode.HTML,
             replyToMessageId = message.messageId,
             replyMarkup = replyMarkup
         )
