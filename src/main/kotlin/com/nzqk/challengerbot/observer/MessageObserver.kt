@@ -1,12 +1,14 @@
 package com.nzqk.challengerbot.observer
 
+import org.springframework.stereotype.Component
 import java.util.*
-import kotlin.concurrent.thread
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.DurationUnit
 
-class MessageObserver {
+@Component
+class MessageObserver : JobTimer(30L.minutes.toLong(DurationUnit.MILLISECONDS)) {
 
-    private val lifeTime: Long = 1800000L
-    private lateinit var thread: Thread
+    private val lifeTime: Long = 30L.minutes.toLong(DurationUnit.MILLISECONDS)
 
     private fun destroyAllOldMessage() {
         val iterator = messages.iterator()
@@ -18,22 +20,10 @@ class MessageObserver {
         }
     }
 
-    fun startTimer() {
-        val timeForCheck = 600_000L
-        thread = thread {
-            var savedTime = System.currentTimeMillis()
-            while (true) {
-                if (System.currentTimeMillis() - savedTime > timeForCheck) {
-                    destroyAllOldMessage()
-                    savedTime = System.currentTimeMillis()
-                }
-            }
-        }
-    }
+    override fun job() = destroyAllOldMessage()
 
     fun get(messageId: Long) =
-            messages[messageId]
-
+        messages[messageId]
 
     fun add(messageId: Long, chatId: Long, userId: Long) {
         messages[messageId] = CacheMessage(chatId = chatId, userId = userId)
@@ -48,6 +38,6 @@ class MessageObserver {
     }
 
     companion object {
-         val messages: MutableMap<Long, CacheMessage> = Collections.synchronizedMap(mutableMapOf<Long, CacheMessage>())
+        private val messages: MutableMap<Long, CacheMessage> = Collections.synchronizedMap(mutableMapOf<Long, CacheMessage>())
     }
 }

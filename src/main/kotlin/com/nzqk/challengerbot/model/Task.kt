@@ -2,6 +2,7 @@ package com.nzqk.challengerbot.model
 
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.*
 import javax.persistence.*
 
@@ -17,22 +18,28 @@ class Task(
     var description: String? = null,
     @Temporal(TemporalType.TIMESTAMP)
     var deadline: Date = Date(),
-    var status: Boolean? = null,
+    @Enumerated(EnumType.STRING)
+    var status: TaskStatus? = TaskStatus.PROGRESS,
     var report: String? = null,
 ) : IdBaseEntity() {
 
-    fun toShortString(): String = "$id: $title. До: $deadline"
+    fun getFormatDeadline(): String? {
+        val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
+        return LocalDateTime.ofInstant(deadline.toInstant(), ZoneId.systemDefault()).format(formatter)
+    }
+
+    fun toShortString(): String = "$id: $title. До: ${getFormatDeadline()}"
 
     override fun toString(): String = """
         <b>Номер:</b> $id
+        <b>Владелец:</b> ${owner?.name ?: ""}
         
         <b>$title</b>
         
-        <b>Владелец:</b> ${owner?.name ?: ""}
+        $description
         
-        <code>$description</code>
-        
-        <b>Срок завершения:</b> $deadline
+        <b>Срок завершения:</b> ${getFormatDeadline()}
+        <b>Статус:</b> ${status!!.message}
     """.trimIndent()
 
     fun deadlinePlusDays(days: Long) {
